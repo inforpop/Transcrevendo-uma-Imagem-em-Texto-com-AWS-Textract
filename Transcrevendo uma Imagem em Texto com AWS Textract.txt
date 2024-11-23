@@ -1,0 +1,102 @@
+A transcrição de uma imagem em texto usando o **AWS Textract** é um processo automatizado que permite extrair texto e dados estruturados de documentos digitalizados. Aqui está um guia passo a passo para realizar essa tarefa:
+
+---
+
+### **1. Pré-requisitos**
+
+- **Conta AWS**: Certifique-se de ter uma conta configurada.
+- **Chaves de Acesso IAM**: Crie um usuário IAM com permissões para o Textract (ex.: política `AmazonTextractFullAccess`).
+- **AWS CLI (Opcional)**: Para testar chamadas via linha de comando.
+- **SDK de sua escolha**: Usaremos o **AWS SDK for Python (Boto3)** como exemplo.
+
+---
+
+### **2. Configurando o Ambiente**
+
+1. **Instalar o Boto3**:
+   ```bash
+   pip install boto3
+   ```
+
+2. **Configurar credenciais AWS**:
+   ```bash
+   aws configure
+   ```
+   Insira as credenciais de acesso (chave de acesso, chave secreta e região).
+
+---
+
+### **3. Usando o AWS Textract**
+
+#### **A. Método 1: Texto Simples**
+Para extrair texto simples de uma imagem.
+
+```python
+import boto3
+
+# Inicializar o cliente do Textract
+textract_client = boto3.client('textract', region_name='us-east-1')  # Substitua pela sua região
+
+# Abrir a imagem
+with open("caminho_da_imagem.jpg", "rb") as document:
+    image_bytes = document.read()
+
+# Enviar a imagem para o Textract
+response = textract_client.detect_document_text(
+    Document={'Bytes': image_bytes}
+)
+
+# Processar o texto extraído
+for item in response['Blocks']:
+    if item['BlockType'] == 'LINE':
+        print(item['Text'])
+```
+
+#### **B. Método 2: Dados Estruturados**
+Para extrair dados como tabelas e formulários.
+
+```python
+response = textract_client.analyze_document(
+    Document={'Bytes': image_bytes},
+    FeatureTypes=['TABLES', 'FORMS']
+)
+
+# Iterar sobre os resultados
+for block in response['Blocks']:
+    if block['BlockType'] == 'TABLE':
+        print("Tabela encontrada!")
+    elif block['BlockType'] == 'KEY_VALUE_SET' and 'KEY' in block['EntityTypes']:
+        key_text = next(item['Text'] for item in block['Relationships'] if item['Type'] == 'CHILD')
+        value_text = next(
+            item['Text']
+            for item in response['Blocks']
+            if item['Id'] in [child['Id'] for child in block['Relationships']]
+        )
+        print(f"{key_text}: {value_text}")
+```
+
+---
+
+### **4. Usando a AWS CLI (Opcional)**
+
+Se preferir usar a AWS CLI para testes:
+
+1. Detectar texto:
+   ```bash
+   aws textract detect-document-text --document '{"Bytes": "$(base64 caminho_da_imagem.jpg)"}'
+   ```
+
+2. Analisar documento:
+   ```bash
+   aws textract analyze-document --document '{"Bytes": "$(base64 caminho_da_imagem.jpg)"}' --feature-types "FORMS" "TABLES"
+   ```
+
+---
+
+### **5. Considerações**
+
+- **Custos**: O AWS Textract cobra por página processada. Consulte a [página de preços](https://aws.amazon.com/textract/pricing/).
+- **Limitações**: Tamanho máximo de arquivos e suportes de formato (ex.: PDF e imagens até 5 MB via API síncrona).
+- **Validação**: Verifique a precisão do texto extraído, especialmente em documentos manuscritos ou com baixa qualidade de imagem.
+
+Se precisar de ajuda para ajustar o código ou configurar o ambiente, é só avisar! 🚀
